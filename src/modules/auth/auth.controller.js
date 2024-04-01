@@ -1,4 +1,4 @@
-import userModel from '../../../db connection/models/User.model.js'
+import userModel from '../../../db connection/models/user.model.js'
 import { handleError } from '../../middleware/handleError.js'
 import { AppError } from '../../utils/AppError.js'
 import bcrypt from 'bcrypt'
