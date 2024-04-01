@@ -5,12 +5,14 @@ import { AppError } from '../../../utils/AppError.js'
 import orderModel from '../../../../db connection/models/order.model.js'
 import productModel from '../../../../db connection/models/product.model.js'
 import Stripe from 'stripe';
+import express from 'express'
+
 const stripe = new Stripe(process.env.ONLINE_SECRET_KEY);
 
 const createCacheOrder = handleError(async (req, res, next) => {
     let cart = await cartModel.findById(req.params.id)
     if (!cart) return next(new AppError("Cart Is Not Found", 404))
-    
+
     let totalOrderPrice = cart.totalPriceAfterDiscount ? cart.totalPriceAfterDiscount : cart.totalPrice
     let order = new orderModel({
         user: req.user._id,
@@ -69,6 +71,36 @@ const onlinePayment = handleError(async (req, res, next) => {
         metadata: req.body.shippingAddress
     });
     res.json({ message: "Done", session })
+})
+
+const app = express()
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, "whsec_YKpGW9qBUdqXN0qOw7fWqWxCnthNKj0F");
+    } catch (err) {
+        return res.status(400).send(`webhook Error:${err.message}`)
+    }
+
+    if (event.type == "checkout.session.completed") {
+        const checkoutSessionCompleted = event.data.object;
+        console.log("Done");
+    } else {
+        console.log(`Unhandled event type ${event.type}`);
+    }
+
+    res.json({ message: "Done" })
+})
+
+app.listen(4242, () => console.log('Runing on port 4242'))
+
+const createOnlineOrder = handleError(async (req, res, next) => {
+
+
+
+
+
 })
 
 export {
