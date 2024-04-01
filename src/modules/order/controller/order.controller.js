@@ -6,6 +6,7 @@ import orderModel from '../../../../db connection/models/order.model.js'
 import productModel from '../../../../db connection/models/product.model.js'
 import Stripe from 'stripe';
 import express from 'express'
+import userModel from '../../../../db connection/models/user.model.js'
 
 const stripe = new Stripe(process.env.ONLINE_SECRET_KEY);
 
@@ -74,7 +75,7 @@ const onlinePayment = handleError(async (req, res, next) => {
 })
 
 const app = express()
-app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+const createOnlineOrder = handleError(async (req, res, next) => {
     const sig = req.headers['stripe-signature'];
     let event;
     try {
@@ -84,8 +85,34 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
     }
 
     if (event.type == "checkout.session.completed") {
-        const checkoutSessionCompleted = event.data.object;
-        console.log("Done");
+        const e = event.data.object;
+
+        let cart = await cartModel.findById(e.client_reference_id)
+        if (!cart) next(new AppError("not valid cart"), 400)
+        let user = await userModel.findOne({ email: e.customer_email })
+        if (!user) next(new AppError("not valid user"), 400)
+
+        let order = new orderModel({
+            user: user._id,
+            cartItems: cart.cartItems,
+            totalPrice: e.amount_total / 100,
+            shippingAddress: e.metadata
+        })
+        if (order) {
+            let options = cart.cartItems.map(item => ({
+                updateOne: {
+                    filter: { _id: item.product },
+                    update: { $inc: { quantity: -item.quantity, sold: item.quantity } }
+                }
+            }))
+            await productModel.bulkWrite(options)
+            await order.save()
+        } else {
+            return next(new AppError("Error", 409))
+        }
+        await cartModel.findByIdAndDelete(cart._id)
+        res.json({ message: "Done", order })
+
     } else {
         console.log(`Unhandled event type ${event.type}`);
     }
@@ -93,18 +120,10 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
     res.json({ message: "Done" })
 })
 
-app.listen(4242, () => console.log('Runing on port 4242'))
-
-const createOnlineOrder = handleError(async (req, res, next) => {
-
-
-
-
-
-})
 
 export {
     createCacheOrder,
     getOrder,
-    onlinePayment
+    onlinePayment,
+    createOnlineOrder
 }

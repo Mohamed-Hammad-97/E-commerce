@@ -1,6 +1,6 @@
 import express from "express";
 import { protectedRoutes } from "../auth/auth.controller.js";
-import { createCacheOrder, getOrder, onlinePayment } from "./controller/order.controller.js";
+import { createCacheOrder, createOnlineOrder, getOrder, onlinePayment } from "./controller/order.controller.js";
 
 const orderRoutes = express.Router()
 
@@ -14,7 +14,7 @@ orderRoutes.route("/:id")
 orderRoutes.route("/checkout/:id")
     .post(protectedRoutes, onlinePayment)
 
-
+orderRoutes.post('/webhook', express.raw({ type: 'application/json' }), createOnlineOrder)
 
 
 
