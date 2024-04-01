@@ -96,7 +96,10 @@ const createOnlineOrder = handleError(async (req, res, next) => {
             user: user._id,
             cartItems: cart.cartItems,
             totalPrice: e.amount_total / 100,
-            shippingAddress: e.metadata
+            shippingAddress: e.metadata,
+            paymentMethod: "credit",
+            isPaid: true,
+            paidAt: Date.now()
         })
         if (order) {
             let options = cart.cartItems.map(item => ({
